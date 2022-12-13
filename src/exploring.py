@@ -11,10 +11,16 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB
 from sklearn.linear_model import LogisticRegression
+from sklearn import metrics
 
 #Loading data
 file_errors_location = "D:\\University\\FourthYear\\SecondTerm\\DataScience\\Data\\SelfAssessmentAndTestCenter.xlsx"
 df = pd.read_excel(file_errors_location)
+df['X108_03'] = df['X108_03'].replace(0, np.nan)
+df['X108_04'] = df['X108_04'].replace(0, np.nan)
+df['X109_07'] = df['X109_07'].replace(0, np.nan)
+df['X109_08'] = df['X109_08'].replace(0, np.nan)
+df=df.fillna(df.mean())
 print(df)
 
 conditions = [
@@ -34,7 +40,7 @@ print(df[0:5])
 
 #dropping unused data
 df.drop(['X108_04'], axis=1, inplace=True)
-df= df.dropna()
+#df= df.dropna()
 
 # Calculating BMI from weight and height
 # Formula : ( weight (kg) / height (cm) / height (cm) )x 10,000
@@ -83,7 +89,7 @@ df_pca = pd.DataFrame(data=X_pca, columns=column_names)
 print(df_pca)
 
 #splitting data into train, valid and test data
-train_data, test_data, train_label, test_label = train_test_split(df_pca, Y, test_size=0.05, random_state=1)
+train_data, test_data, train_label, test_label = train_test_split(df_pca, Y, test_size=0.10, random_state=1)
 train_data, valid_data, train_label, valid_label = train_test_split(train_data, train_label, test_size=0.15, random_state=1)
 
 def logistic_regression():
@@ -96,10 +102,11 @@ def logistic_regression():
 
     # Calculate the accuracy of the model
     accuracy = accuracy_score(test_label, y_pred)
-    print(accuracy)
+    print("Logistic regression accuracy: : %.2f" % (accuracy*100))
+    print(metrics.classification_report(test_label,y_pred))
 
 def knn_model():
-    # Setup arrays to store train and test accuracies
+    '''# Setup arrays to store train and test accuracies
     neighbors = np.arange(1, 9)
     train_accuracy = np.empty(len(neighbors))
     test_accuracy = np.empty(len(neighbors))
@@ -125,7 +132,20 @@ def knn_model():
     plt.legend()
     plt.xlabel('Number of Neighbors')
     plt.ylabel('Accuracy')
-    plt.show()
+    plt.show()'''
+    neigh = KNeighborsClassifier(n_neighbors=7)
+
+
+    # Training the model
+    neigh.fit(train_data, train_label)
+
+    # Make predictions on new data
+    y_pred = neigh.predict(test_data)
+
+    # Calculate the accuracy of the model
+    accuracy = accuracy_score(test_label, y_pred)
+    print("K-nn accuracy: %.2f" %(accuracy*100))    
+    print(metrics.classification_report(test_label,y_pred))
 
 def naive_bayes():
     nb = GaussianNB()
@@ -138,7 +158,9 @@ def naive_bayes():
 
     # Calculate the accuracy of the model
     accuracy = accuracy_score(test_label, y_pred)
-    print(accuracy)
+    print("Naive Bayes accuracy: %.2f" %(accuracy*100))
+    print(metrics.classification_report(test_label,y_pred))
+    
 
 def svm_model():
     svm = SVC()
@@ -151,7 +173,8 @@ def svm_model():
 
     # Calculate the accuracy of the model
     accuracy = accuracy_score(test_label, y_pred)
-    print(accuracy)
+    print("SVM accuracy: %.2f' " %(accuracy*100))
+    print(metrics.classification_report(test_label,y_pred))
 
 def decision_tree():
     dt = DecisionTreeClassifier()
@@ -164,12 +187,18 @@ def decision_tree():
 
     # Calculate the accuracy of the model
     accuracy = accuracy_score(test_label, y_pred)
-    print('Test Accuracy: %.2f' % (accuracy*100))
+    print('Decision_Tree accuracy: %.2f' % (accuracy*100))
+    print(metrics.classification_report(test_label,y_pred))
 
+print(df.isnull().sum())
+#print (df.loc[:, df.isnull().any()])
 logistic_regression()
 naive_bayes()
 svm_model()
 decision_tree()
+knn_model()
+#f1, precision, recall
+
     
 
 
