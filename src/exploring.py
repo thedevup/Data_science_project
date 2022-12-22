@@ -83,13 +83,35 @@ X= MinMaxScaler().fit_transform(X)
 print("After standardizing",X)
 
 # Creating a PCA object with 0.99 as the target explained variance
-pca = PCA(n_components=0.99)
+pca = PCA(n_components=0.99).fit(X)
 
 # Fiting the PCA model to the data
-pca.fit(X)
+#pca.fit(X)
 
 # Transforming the data using the fitted PCA model
 X_pca = pca.transform(X)
+
+#------
+
+# number of components
+n_pca= pca.components_.shape[0]
+
+# get the index of the most important feature on EACH component
+# LIST COMPREHENSION HERE
+most_important = [np.abs(pca.components_[i]).argmax() for i in range(n_pca)]
+
+initial_feature_names = X_col.columns
+# get the names
+most_important_names = [initial_feature_names[most_important[i]] for i in range(n_pca)]
+
+# LIST COMPREHENSION HERE AGAIN
+dic = {'PCA{}'.format(i+1): most_important_names[i] for i in range(n_pca)}
+
+# build the dataframe
+df = pd.DataFrame(dic.items())
+print(df)
+
+#-----
 
 # Creating a new dataframe from the transformed data
 column_names = ['PCA_' + str(i+1) for i in range(X_pca.shape[1])]
@@ -104,6 +126,15 @@ def logistic_regression():
     # Train the logistic regression model
     model = LogisticRegression(max_iter=3000)
     model.fit(train_data, train_label)
+
+    # get importance
+    importance = model.coef_[0]
+    # summarize feature importance
+    for i,v in enumerate(importance):
+     print("feature:", df_pca.columns[i],"Importance score: ",format(v, '.5f'))
+    # plot feature importance
+    plt.bar([x for x in range(len(importance))], importance)
+    plt.show()
 
     # Make predictions on new data
     y_pred = model.predict(test_data)
@@ -146,7 +177,7 @@ def knn_model():
 
     # Training the model
     neigh.fit(train_data, train_label)
-
+   
     # perform permutation importance
     results = permutation_importance(neigh,train_data, train_label, scoring='accuracy')
     # get importance
@@ -154,7 +185,7 @@ def knn_model():
     # summarize feature importance
     for i,v in enumerate(importance):
        #print('Feature: %0d, Score: %.5f' % (i,v))
-       print("feature:", X_col.columns[i],"Importance score: ",format(v, '.5f'))
+       print("feature:", df_pca.columns[i],"Importance score: ",format(v, '.5f'))
     # plot feature importance
     plt.bar([x for x in range(len(importance))], importance)
     plt.show()
@@ -173,6 +204,17 @@ def naive_bayes():
     # Training the model
     nb.fit(train_data, train_label)
 
+    # perform permutation importance
+    results = permutation_importance(nb,train_data, train_label, scoring='accuracy')
+    # get importance
+    importance = results.importances_mean
+    # summarize feature importance
+    for i,v in enumerate(importance):
+       print("feature:", df_pca.columns[i],"Importance score: ",format(v, '.5f'))
+    # plot feature importance
+    plt.bar([x for x in range(len(importance))], importance)
+    plt.show()
+
     # Make predictions on new data
     y_pred = nb.predict(test_data)
 
@@ -188,6 +230,15 @@ def svm_model():
     # Training the model
     svm.fit(train_data, train_label)
 
+    # get importance
+    importance = svm.coef_[0]
+    # summarize feature importance
+    for i,v in enumerate(importance):
+     print("feature:", df_pca.columns[i],"Importance score: ",format(v, '.5f'))
+    # plot feature importance
+    plt.bar([x for x in range(len(importance))], importance)
+    plt.show()
+
     # Make predictions on new data
     y_pred = svm.predict(test_data)
 
@@ -201,6 +252,15 @@ def decision_tree():
 
     # Training the model
     dt.fit(train_data, train_label)
+
+    # get importance
+    importance = dt.feature_importances_
+    # summarize feature importance
+    for i,v in enumerate(importance):
+       print("feature:", df_pca.columns[i],"Importance score: ",format(v, '.5f'))
+    # plot feature importance
+    pyplot.bar([x for x in range(len(importance))], importance)
+    pyplot.show()
 
     # Make predictions on new data
     y_pred = dt.predict(test_data)
