@@ -28,6 +28,7 @@ from sklearn.model_selection import GridSearchCV
 #Loading data
 file_errors_location = "D:\\University\\FourthYear\\SecondTerm\\DataScience\\Data\\SelfAssessmentAndTestCenter.xlsx"
 df = pd.read_excel(file_errors_location)
+df.info()
 #replacing 0 with nan
 df['X108_03'] = df['X108_03'].replace(0, np.nan)
 df['X108_04'] = df['X108_04'].replace(0, np.nan)
@@ -95,10 +96,6 @@ print("After standardizing",X)
 
 # Creating a PCA object with 0.99 as the target explained variance
 pca = PCA(n_components=0.99).fit(X)
-
-# Fiting the PCA model to the data
-#pca.fit(X)
-
 # Transforming the data using the fitted PCA model
 X_pca = pca.transform(X)
 
