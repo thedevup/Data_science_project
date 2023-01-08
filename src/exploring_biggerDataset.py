@@ -13,6 +13,15 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.linear_model import LogisticRegression
 from sklearn import metrics
 from sklearn.inspection import permutation_importance
+from numpy import mean
+from sklearn.datasets import make_classification
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import RepeatedStratifiedKFold
+from sklearn.tree import DecisionTreeClassifier
+from imblearn.pipeline import Pipeline
+from imblearn.over_sampling import RandomOverSampler
+from imblearn.under_sampling import RandomUnderSampler
+from collections import Counter
 
 #Loading data
 file_errors_location = "D:\\University\\FourthYear\\SecondTerm\\DataScience\\Data\\TS2018-2019_AISS (AM students).xlsx"
@@ -30,6 +39,7 @@ print(updated_data)
 X = updated_data.values
 Y = df.iloc[:,5]
 
+print('0 and 1 count in finals: ',df['Finals'].value_counts())
 X_col = updated_data
 print(X)
 print(Y)
@@ -64,7 +74,7 @@ dic = {'PCA{}'.format(i+1): most_important_names[i] for i in range(n_pca)}
 
 # build the dataframe
 df = pd.DataFrame(dic.items())
-print(df)
+print(df[0:50])
 
 #-----
 # Creating a new dataframe from the transformed data
@@ -76,20 +86,22 @@ print(df_pca)
 train_data, test_data, train_label, test_label = train_test_split(df_pca, Y, test_size=0.10, random_state=1)
 train_data, valid_data, train_label, valid_label = train_test_split(train_data, train_label, test_size=0.15, random_state=1)
 
+# define oversampling strategy
+#oversample = RandomOverSampler(sampling_strategy='minority')
+# fit and apply the transform
+#train_data, train_label = oversample.fit_resample(train_data, train_label)
+
+# define undersample strategy
+undersample = RandomUnderSampler(sampling_strategy='majority')
+# fit and apply the transform
+train_data, train_label = undersample.fit_resample(train_data, train_label)
+# summarize class distribution
+print(Counter(train_label))
+
 def logistic_regression():
     # Train the logistic regression model
     model = LogisticRegression(max_iter=3000)
     model.fit(train_data, train_label)
-
-    # get importance
-    importance = model.coef_[0]
-    # summarize feature importance
-    for i,v in enumerate(importance):
-     print("feature:", df_pca.columns[i],"Importance score: ",format(v, '.5f'))
-    # plot feature importance
-    plt.bar([x for x in range(len(importance))], importance)
-    plt.show()
-
     # Make predictions on new data
     y_pred = model.predict(test_data)
 
@@ -104,19 +116,6 @@ def knn_model():
 
     # Training the model
     neigh.fit(train_data, train_label)
-   
-    # perform permutation importance
-    results = permutation_importance(neigh,train_data, train_label, scoring='accuracy')
-    # get importance
-    importance = results.importances_mean
-    # summarize feature importance
-    for i,v in enumerate(importance):
-       #print('Feature: %0d, Score: %.5f' % (i,v))
-       print("feature:", df_pca.columns[i],"Importance score: ",format(v, '.5f'))
-    # plot feature importance
-    plt.bar([x for x in range(len(importance))], importance)
-    plt.show()
-
     # Make predictions on new data
     y_pred = neigh.predict(test_data)
 
@@ -130,17 +129,6 @@ def naive_bayes():
 
     # Training the model
     nb.fit(train_data, train_label)
-
-    # perform permutation importance
-    results = permutation_importance(nb,train_data, train_label, scoring='accuracy')
-    # get importance
-    importance = results.importances_mean
-    # summarize feature importance
-    for i,v in enumerate(importance):
-       print("feature:", df_pca.columns[i],"Importance score: ",format(v, '.5f'))
-    # plot feature importance
-    plt.bar([x for x in range(len(importance))], importance)
-    plt.show()
 
     # Make predictions on new data
     y_pred = nb.predict(test_data)
@@ -157,15 +145,6 @@ def svm_model():
     # Training the model
     svm.fit(train_data, train_label)
 
-    # get importance
-    importance = svm.coef_[0]
-    # summarize feature importance
-    for i,v in enumerate(importance):
-     print("feature:", df_pca.columns[i],"Importance score: ",format(v, '.5f'))
-    # plot feature importance
-    plt.bar([x for x in range(len(importance))], importance)
-    plt.show()
-
     # Make predictions on new data
     y_pred = svm.predict(test_data)
 
@@ -180,15 +159,6 @@ def decision_tree():
     # Training the model
     dt.fit(train_data, train_label)
 
-    # get importance
-    importance = dt.feature_importances_
-    # summarize feature importance
-    for i,v in enumerate(importance):
-       print("feature:", df_pca.columns[i],"Importance score: ",format(v, '.5f'))
-    # plot feature importance
-    pyplot.bar([x for x in range(len(importance))], importance)
-    pyplot.show()
-
     # Make predictions on new data
     y_pred = dt.predict(test_data)
 
@@ -197,8 +167,8 @@ def decision_tree():
     print('Decision_Tree accuracy: %.2f' % (accuracy*100))
     print(metrics.classification_report(test_label,y_pred))
 
-#logistic_regression()
+logistic_regression()
 naive_bayes()
-'''svm_model()
+svm_model()
 decision_tree()
-knn_model()'''
+knn_model()
