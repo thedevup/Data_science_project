@@ -2,10 +2,11 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+from sklearn import linear_model
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.decomposition import PCA
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
@@ -22,6 +23,8 @@ from imblearn.pipeline import Pipeline
 from imblearn.over_sampling import RandomOverSampler
 from imblearn.under_sampling import RandomUnderSampler
 from collections import Counter
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import GridSearchCV
 
 #Loading data
 file_errors_location = "D:\\University\\FourthYear\\SecondTerm\\DataScience\\Data\\TS2018-2019_AISS (AM students).xlsx"
@@ -92,15 +95,80 @@ train_data, valid_data, train_label, valid_label = train_test_split(train_data, 
 #train_data, train_label = oversample.fit_resample(train_data, train_label)
 
 # define undersample strategy
-undersample = RandomUnderSampler(sampling_strategy='majority')
+#undersample = RandomUnderSampler(sampling_strategy='majority')
 # fit and apply the transform
-train_data, train_label = undersample.fit_resample(train_data, train_label)
+#train_data, train_label = undersample.fit_resample(train_data, train_label)
 # summarize class distribution
 print(Counter(train_label))
 
+def optimizing_LR():
+    # define models and parameters
+    model = LogisticRegression()
+    solvers = ['newton-cg', 'lbfgs', 'liblinear']
+    penalty = ['l2']
+    c_values = [100, 10, 1.0, 0.1, 0.01]
+    # define grid search
+    grid = dict(solver=solvers,penalty=penalty,C=c_values)
+    cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
+    grid_search = GridSearchCV(estimator=model, param_grid=grid, n_jobs=-1, cv=cv, scoring='accuracy',error_score=0)
+    grid_result = grid_search.fit(train_data, train_label)
+    # summarize results
+    print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+
+    #Following result was obtained
+    #Best: 0.601450 using {'C': 0.1, 'penalty': 'l2', 'solver': 'liblinear'}
+
+def optimizing_SVM():
+    # define model and parameters
+    model = SVC()
+    kernel = ['poly', 'rbf', 'sigmoid']
+    C = [50, 10, 1.0, 0.1, 0.01]
+    gamma = ['scale']
+    # define grid search
+    grid = dict(kernel=kernel,C=C,gamma=gamma)
+    cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
+    grid_search = GridSearchCV(estimator=model, param_grid=grid, n_jobs=-1, cv=cv, scoring='accuracy',error_score=0)
+    grid_result = grid_search.fit(train_data, train_label)
+    # summarize results
+    print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+    #result obtained after optimizing parameters
+    #'C': 0.1, 'gamma': 'scale', 'kernel': 'sigmoid'}
+
+def optimizing_gaussiannb():
+    model=GaussianNB()
+    params_NB = {'var_smoothing': np.logspace(0,-9, num=100)}
+    grid_search = GridSearchCV(estimator=model, param_grid=params_NB, scoring='accuracy',error_score=0) 
+    grid_result=grid_search.fit(train_data, train_label)
+    # summarize results
+    print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+    #Result obtained
+    #'var_smoothing': 0.8111308307896871
+
+def optimizing_decisiontree():
+    model =DecisionTreeClassifier()
+    params = {'max_depth': [2, 3, 5, 10, 20],
+              'min_samples_leaf': [5, 10, 20, 50, 100],
+              'criterion': ["gini", "entropy"]}
+    grid_search = GridSearchCV(estimator=model, param_grid=params, scoring='accuracy',error_score=0) 
+    grid_result=grid_search.fit(train_data, train_label)
+    # summarize results
+    print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+    #Result obtained
+    #'criterion': 'entropy', 'max_depth': 5, 'min_samples_leaf': 100
+    
+def optimizing_knn():
+    model =KNeighborsClassifier()
+    params = {'n_neighbors': [1,2,3,4,5,6,7,8,9,10]}
+    grid_search = GridSearchCV(estimator=model, param_grid=params, scoring='accuracy',error_score=0) 
+    grid_result=grid_search.fit(train_data, train_label)
+    # summarize results
+    print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+    #Result obtained
+    #'criterion': 'entropy', 'max_depth': 5, 'min_samples_leaf': 100
+    
 def logistic_regression():
     # Train the logistic regression model
-    model = LogisticRegression(max_iter=3000)
+    model = LogisticRegression(C=0.1,penalty='l2',solver='liblinear')
     model.fit(train_data, train_label)
     # Make predictions on new data
     y_pred = model.predict(test_data)
@@ -109,66 +177,92 @@ def logistic_regression():
     accuracy = accuracy_score(test_label, y_pred)
     print("Logistic regression accuracy: : %.2f" % (accuracy*100))
     print(metrics.classification_report(test_label,y_pred))
+    cm = confusion_matrix(test_label, y_pred, labels = model.classes_)
+    display = ConfusionMatrixDisplay(confusion_matrix=cm,display_labels=model.classes_)
+    display.plot()
+    plt.show()
 
 def knn_model():
-    neigh = KNeighborsClassifier(n_neighbors=7)
-
+    model = KNeighborsClassifier(n_neighbors=5)
 
     # Training the model
-    neigh.fit(train_data, train_label)
+    model.fit(train_data, train_label)
     # Make predictions on new data
-    y_pred = neigh.predict(test_data)
+    y_pred = model.predict(test_data)
 
     # Calculate the accuracy of the model
     accuracy = accuracy_score(test_label, y_pred)
     print("K-nn accuracy: %.2f" %(accuracy*100))    
     print(metrics.classification_report(test_label,y_pred))
+    cm = confusion_matrix(test_label, y_pred, labels = model.classes_)
+    display = ConfusionMatrixDisplay(confusion_matrix=cm,display_labels=model.classes_)
+    display.plot()
+    plt.show()
 
 def naive_bayes():
-    nb = GaussianNB()
+    model = GaussianNB(var_smoothing=0.8111308307896871)
 
     # Training the model
-    nb.fit(train_data, train_label)
+    model.fit(train_data, train_label)
 
     # Make predictions on new data
-    y_pred = nb.predict(test_data)
+    y_pred = model.predict(test_data)
 
     # Calculate the accuracy of the model
     accuracy = accuracy_score(test_label, y_pred)
     print("Naive Bayes accuracy: %.2f" %(accuracy*100))
     print(metrics.classification_report(test_label,y_pred))
+    cm = confusion_matrix(test_label, y_pred, labels = model.classes_)
+    display = ConfusionMatrixDisplay(confusion_matrix=cm,display_labels=model.classes_)
+    display.plot()
+    plt.show()
     
 
 def svm_model():
-    svm = SVC()
+    model = SVC(C=0.1, gamma= 'scale', kernel= 'sigmoid')
 
     # Training the model
-    svm.fit(train_data, train_label)
+    model.fit(train_data, train_label)
 
     # Make predictions on new data
-    y_pred = svm.predict(test_data)
+    y_pred = model.predict(test_data)
 
     # Calculate the accuracy of the model
     accuracy = accuracy_score(test_label, y_pred)
     print("SVM accuracy: %.2f' " %(accuracy*100))
     print(metrics.classification_report(test_label,y_pred))
+    cm = confusion_matrix(test_label, y_pred, labels = model.classes_)
+    display = ConfusionMatrixDisplay(confusion_matrix=cm,display_labels=model.classes_)
+    display.plot()
+    plt.show()
 
 def decision_tree():
-    dt = DecisionTreeClassifier()
+    model = DecisionTreeClassifier(criterion= 'entropy', max_depth= 5, min_samples_leaf= 100)
 
     # Training the model
-    dt.fit(train_data, train_label)
+    model.fit(train_data, train_label)
 
     # Make predictions on new data
-    y_pred = dt.predict(test_data)
+    y_pred = model.predict(test_data)
 
     # Calculate the accuracy of the model
     accuracy = accuracy_score(test_label, y_pred)
     print('Decision_Tree accuracy: %.2f' % (accuracy*100))
     print(metrics.classification_report(test_label,y_pred))
+    cm = confusion_matrix(test_label, y_pred, labels = model.classes_)
+    display = ConfusionMatrixDisplay(confusion_matrix=cm,display_labels=model.classes_)
+    display.plot()
+    plt.show()
+
+#optimizing_LR()
+#optimizing_SVM()
+#optimizing_gaussiannb()
+#optimizing_decisiontree()
+#optimizing_knn()
 
 logistic_regression()
 naive_bayes()
 svm_model()
 decision_tree()
 knn_model()
+

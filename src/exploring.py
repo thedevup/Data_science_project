@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.decomposition import PCA
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, confusion_matrix, ConfusionMatrixDisplay
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.svm import SVC
@@ -13,6 +13,17 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.linear_model import LogisticRegression
 from sklearn import metrics
 from sklearn.inspection import permutation_importance
+from numpy import mean
+from sklearn.datasets import make_classification
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import RepeatedStratifiedKFold
+from sklearn.tree import DecisionTreeClassifier
+from imblearn.pipeline import Pipeline
+from imblearn.over_sampling import RandomOverSampler
+from imblearn.under_sampling import RandomUnderSampler
+from collections import Counter
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import GridSearchCV
 
 #Loading data
 file_errors_location = "D:\\University\\FourthYear\\SecondTerm\\DataScience\\Data\\SelfAssessmentAndTestCenter.xlsx"
@@ -92,7 +103,6 @@ pca = PCA(n_components=0.99).fit(X)
 X_pca = pca.transform(X)
 
 #------
-
 # number of components
 n_pca= pca.components_.shape[0]
 
@@ -122,20 +132,87 @@ print(df_pca)
 train_data, test_data, train_label, test_label = train_test_split(df_pca, Y, test_size=0.10, random_state=1)
 train_data, valid_data, train_label, valid_label = train_test_split(train_data, train_label, test_size=0.15, random_state=1)
 
+# define oversampling strategy
+#oversample = RandomOverSampler(sampling_strategy='minority')
+# fit and apply the transform
+#train_data, train_label = oversample.fit_resample(train_data, train_label)
+
+# define undersample strategy
+#undersample = RandomUnderSampler(sampling_strategy='majority')
+# fit and apply the transform
+#train_data, train_label = undersample.fit_resample(train_data, train_label)
+# summarize class distribution
+#print(Counter(train_label))
+
+def optimizing_LR():
+    # define models and parameters
+    model = LogisticRegression()
+    solvers = ['newton-cg', 'lbfgs', 'liblinear']
+    penalty = ['l2']
+    c_values = [100, 10, 1.0, 0.1, 0.01]
+    # define grid search
+    grid = dict(solver=solvers,penalty=penalty,C=c_values)
+    cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
+    grid_search = GridSearchCV(estimator=model, param_grid=grid, n_jobs=-1, cv=cv, scoring='accuracy',error_score=0)
+    grid_result = grid_search.fit(train_data, train_label)
+    # summarize results
+    print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+
+    #Following result was obtained
+    #'C': 1.0, 'penalty': 'l2', 'solver': 'newton-cg'
+
+def optimizing_SVM():
+    # define model and parameters
+    model = SVC()
+    kernel = ['poly', 'rbf', 'sigmoid']
+    C = [50, 10, 1.0, 0.1, 0.01]
+    gamma = ['scale']
+    # define grid search
+    grid = dict(kernel=kernel,C=C,gamma=gamma)
+    cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
+    grid_search = GridSearchCV(estimator=model, param_grid=grid, n_jobs=-1, cv=cv, scoring='accuracy',error_score=0)
+    grid_result = grid_search.fit(train_data, train_label)
+    # summarize results
+    print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+    #result obtained after optimizing parameters
+    #'C': 1.0, 'gamma': 'scale', 'kernel': 'sigmoid'}
+
+def optimizing_gaussiannb():
+    model=GaussianNB()
+    params_NB = {'var_smoothing': np.logspace(0,-9, num=100)}
+    grid_search = GridSearchCV(estimator=model, param_grid=params_NB, scoring='accuracy',error_score=0) 
+    grid_result=grid_search.fit(train_data, train_label)
+    # summarize results
+    print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+    #Result obtained
+    #'var_smoothing': 1.0
+
+def optimizing_decisiontree():
+    model =DecisionTreeClassifier()
+    params = {'max_depth': [2, 3, 5, 10, 20],
+              'min_samples_leaf': [5, 10, 20, 50, 100],
+              'criterion': ["gini", "entropy"]}
+    grid_search = GridSearchCV(estimator=model, param_grid=params, scoring='accuracy',error_score=0) 
+    grid_result=grid_search.fit(train_data, train_label)
+    # summarize results
+    print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+    #Result obtained
+    #'criterion': 'gini', 'max_depth': 2, 'min_samples_leaf': 5
+    
+def optimizing_knn():
+    model =KNeighborsClassifier()
+    params = {'n_neighbors': [1,2,3,4,5,6,7,8,9,10]}
+    grid_search = GridSearchCV(estimator=model, param_grid=params, scoring='accuracy',error_score=0) 
+    grid_result=grid_search.fit(train_data, train_label)
+    # summarize results
+    print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
+    #Result obtained
+    #n_neighbors:7
+    
 def logistic_regression():
     # Train the logistic regression model
-    model = LogisticRegression(max_iter=3000)
+    model = LogisticRegression(C=1.0,penalty='l2',solver='newton-cg')
     model.fit(train_data, train_label)
-
-    # get importance
-    importance = model.coef_[0]
-    # summarize feature importance
-    for i,v in enumerate(importance):
-     print("feature:", df_pca.columns[i],"Importance score: ",format(v, '.5f'))
-    # plot feature importance
-    plt.bar([x for x in range(len(importance))], importance)
-    plt.show()
-
     # Make predictions on new data
     y_pred = model.predict(test_data)
 
@@ -143,53 +220,15 @@ def logistic_regression():
     accuracy = accuracy_score(test_label, y_pred)
     print("Logistic regression accuracy: : %.2f" % (accuracy*100))
     print(metrics.classification_report(test_label,y_pred))
-
-def knn_model():
-    '''# Setup arrays to store train and test accuracies
-    neighbors = np.arange(1, 9)
-    train_accuracy = np.empty(len(neighbors))
-    test_accuracy = np.empty(len(neighbors))
-
-    # Loop over different values of k
-    for i, k in enumerate(neighbors):
-        # Setup a k-NN Classifier with k neighbors: knn
-        knn = KNeighborsClassifier(n_neighbors=k)
-
-        # Fit the classifier to the training data
-        knn.fit(train_data, train_label)
-        
-        #Compute accuracy on the training set
-        train_accuracy[i] = knn.score(train_data, train_label)
-
-        #Compute accuracy on the testing set
-        test_accuracy[i] = knn.score(test_data, test_label)
-
-    # Generate plot
-    plt.title('k-NN: Varying Number of Neighbors')
-    plt.plot(neighbors, test_accuracy, label = 'Testing Accuracy')
-    plt.plot(neighbors, train_accuracy, label = 'Training Accuracy')
-    plt.legend()
-    plt.xlabel('Number of Neighbors')
-    plt.ylabel('Accuracy')
-    plt.show()'''
-    neigh = KNeighborsClassifier(n_neighbors=7)
-
-
-    # Training the model
-    neigh.fit(train_data, train_label)
-   
-    # perform permutation importance
-    results = permutation_importance(neigh,train_data, train_label, scoring='accuracy')
-    # get importance
-    importance = results.importances_mean
-    # summarize feature importance
-    for i,v in enumerate(importance):
-       #print('Feature: %0d, Score: %.5f' % (i,v))
-       print("feature:", df_pca.columns[i],"Importance score: ",format(v, '.5f'))
-    # plot feature importance
-    plt.bar([x for x in range(len(importance))], importance)
+    cm = confusion_matrix(test_label, y_pred, labels = model.classes_)
+    display = ConfusionMatrixDisplay(confusion_matrix=cm,display_labels=model.classes_)
+    display.plot()
     plt.show()
 
+def knn_model():
+    neigh = KNeighborsClassifier(n_neighbors=7)
+    # Training the model
+    neigh.fit(train_data, train_label)
     # Make predictions on new data
     y_pred = neigh.predict(test_data)
 
@@ -199,22 +238,10 @@ def knn_model():
     print(metrics.classification_report(test_label,y_pred))
 
 def naive_bayes():
-    nb = GaussianNB()
+    nb = GaussianNB(var_smoothing=1.0)
 
     # Training the model
     nb.fit(train_data, train_label)
-
-    # perform permutation importance
-    results = permutation_importance(nb,train_data, train_label, scoring='accuracy')
-    # get importance
-    importance = results.importances_mean
-    # summarize feature importance
-    for i,v in enumerate(importance):
-       print("feature:", df_pca.columns[i],"Importance score: ",format(v, '.5f'))
-    # plot feature importance
-    plt.bar([x for x in range(len(importance))], importance)
-    plt.show()
-
     # Make predictions on new data
     y_pred = nb.predict(test_data)
 
@@ -225,19 +252,10 @@ def naive_bayes():
     
 
 def svm_model():
-    svm = SVC()
+    svm = SVC(C=1.0, gamma= 'scale', kernel= 'sigmoid')
 
     # Training the model
     svm.fit(train_data, train_label)
-
-    # get importance
-    importance = svm.coef_[0]
-    # summarize feature importance
-    for i,v in enumerate(importance):
-     print("feature:", df_pca.columns[i],"Importance score: ",format(v, '.5f'))
-    # plot feature importance
-    plt.bar([x for x in range(len(importance))], importance)
-    plt.show()
 
     # Make predictions on new data
     y_pred = svm.predict(test_data)
@@ -248,19 +266,10 @@ def svm_model():
     print(metrics.classification_report(test_label,y_pred))
 
 def decision_tree():
-    dt = DecisionTreeClassifier()
+    dt = DecisionTreeClassifier(criterion= 'gini', max_depth= 2, min_samples_leaf= 5)
 
     # Training the model
     dt.fit(train_data, train_label)
-
-    # get importance
-    importance = dt.feature_importances_
-    # summarize feature importance
-    for i,v in enumerate(importance):
-       print("feature:", df_pca.columns[i],"Importance score: ",format(v, '.5f'))
-    # plot feature importance
-    pyplot.bar([x for x in range(len(importance))], importance)
-    pyplot.show()
 
     # Make predictions on new data
     y_pred = dt.predict(test_data)
@@ -270,11 +279,17 @@ def decision_tree():
     print('Decision_Tree accuracy: %.2f' % (accuracy*100))
     print(metrics.classification_report(test_label,y_pred))
 
-'''logistic_regression()
+optimizing_LR()
+#optimizing_SVM()
+#optimizing_gaussiannb()
+#optimizing_decisiontree()
+#optimizing_knn()
+'''
+logistic_regression()
 naive_bayes()
 svm_model()
-decision_tree()'''
-knn_model()
+decision_tree()
+knn_model()'''
 
     
 
