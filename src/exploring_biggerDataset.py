@@ -47,10 +47,6 @@ X_col = updated_data
 print(X)
 print(Y)
 
-# Normalize Features
-#scaler = MinMaxScaler()
-#X = scaler.fit_transform(X)
-
 # Creating a PCA object with 0.99 as the target explained variance
 pca = PCA(n_components=0.99).fit(X)
 

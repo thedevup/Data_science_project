@@ -116,7 +116,7 @@ dic = {'PCA{}'.format(i+1): most_important_names[i] for i in range(n_pca)}
 
 # build the dataframe
 df = pd.DataFrame(dic.items())
-print(df)
+print(df[50:80])
 
 #-----
 
@@ -135,9 +135,10 @@ train_data, valid_data, train_label, valid_label = train_test_split(train_data, 
 #train_data, train_label = oversample.fit_resample(train_data, train_label)
 
 # define undersample strategy
-#undersample = RandomUnderSampler(sampling_strategy='majority')
+undersample = RandomUnderSampler(sampling_strategy='majority')
 # fit and apply the transform
-#train_data, train_label = undersample.fit_resample(train_data, train_label)
+train_data, train_label = undersample.fit_resample(train_data, train_label)
+
 # summarize class distribution
 #print(Counter(train_label))
 
@@ -212,6 +213,15 @@ def logistic_regression():
     model.fit(train_data, train_label)
     # Make predictions on new data
     y_pred = model.predict(test_data)
+    
+    # get importance
+    importance = model.coef_[0]
+    # summarize feature importance
+    for i,v in enumerate(importance):
+     print("feature:", df_pca.columns[i],"Importance score: ",format(v, '.5f'))
+    # plot feature importance
+    plt.bar([x for x in range(len(importance))], importance)
+    plt.show()
 
     # Calculate the accuracy of the model
     accuracy = accuracy_score(test_label, y_pred)
@@ -228,6 +238,17 @@ def knn_model():
     neigh.fit(train_data, train_label)
     # Make predictions on new data
     y_pred = neigh.predict(test_data)
+
+    # perform permutation importance
+    results = permutation_importance(nb,train_data, train_label, scoring='accuracy')
+    # get importance
+    importance = results.importances_mean
+    # summarize feature importance
+    for i,v in enumerate(importance):
+       print("feature:", df_pca.columns[i],"Importance score: ",format(v, '.5f'))
+    # plot feature importance
+    plt.bar([x for x in range(len(importance))], importance)
+    plt.show()
 
     # Calculate the accuracy of the model
     accuracy = accuracy_score(test_label, y_pred)
@@ -268,6 +289,15 @@ def decision_tree():
     # Training the model
     dt.fit(train_data, train_label)
 
+    # get importance
+    importance = dt.feature_importances_
+    # summarize feature importance
+    for i,v in enumerate(importance):
+       print("feature:", df_pca.columns[i],"Importance score: ",format(v, '.5f'))
+    # plot feature importance
+    plt.bar([x for x in range(len(importance))], importance)
+    plt.show()
+    
     # Make predictions on new data
     y_pred = dt.predict(test_data)
 
@@ -276,17 +306,18 @@ def decision_tree():
     print('Decision_Tree accuracy: %.2f' % (accuracy*100))
     print(metrics.classification_report(test_label,y_pred))
 
-optimizing_LR()
+#optimizing_LR()
 #optimizing_SVM()
 #optimizing_gaussiannb()
 #optimizing_decisiontree()
 #optimizing_knn()
-'''
-logistic_regression()
-naive_bayes()
-svm_model()
+
+#logistic_regression()
+
+#naive_bayes()
+#svm_model()
 decision_tree()
-knn_model()'''
+#knn_model()
 
     
 
