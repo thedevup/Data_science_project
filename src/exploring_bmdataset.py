@@ -26,9 +26,17 @@ from sklearn.pipeline import Pipeline
 from sklearn.model_selection import GridSearchCV
 
 #Loading data
-file_errors_location = "D:\\University\\FourthYear\\SecondTerm\\DataScience\\Data\\SelfAssessmentAndTestCenter.xlsx"
-df = pd.read_excel(file_errors_location)
+file_errors_location = "D:\\University\\FourthYear\\SecondTerm\\DataScience\\BIM_data\\talentscandata_v2.csv"
+df = pd.csv(file_errors_location)
 df.info()
+
+#Loading data
+df =pd.read_csv("realtor-data.csv")
+print(df.info())
+
+#Counting missing value per attribute
+print(df.isna().sum())
+"""
 #replacing 0 with nan
 df['X108_03'] = df['X108_03'].replace(0, np.nan)
 df['X108_04'] = df['X108_04'].replace(0, np.nan)
@@ -95,9 +103,9 @@ X= MinMaxScaler().fit_transform(X)
 print("After standardizing",X)
 
 # Creating a PCA object with 0.99 as the target explained variance
-pca = PCA(n_components=0.99).fit(X)
+#pca = PCA(n_components=0.99).fit(X)
 # Transforming the data using the fitted PCA model
-X_pca = pca.transform(X)
+#X_pca = pca.transform(X)
 
 #------
 # number of components
@@ -107,7 +115,7 @@ X_pca = pca.transform(X)
 # LIST COMPREHENSION HERE
 #most_important = [np.abs(pca.components_[i]).argmax() for i in range(n_pca)]
 
-"""
+
 initial_feature_names = X_col.columns
 # get the names
 most_important_names = [initial_feature_names[most_important[i]] for i in range(n_pca)]
@@ -117,18 +125,18 @@ dic = {'PCA{}'.format(i+1): most_important_names[i] for i in range(n_pca)}
 
 # build the dataframe
 df = pd.DataFrame(dic.items())
-print(df[50:80])"""
+print(df[50:80])
 
 #-----
 
 # Creating a new dataframe from the transformed data
 column_names = ['PCA_' + str(i+1) for i in range(X_pca.shape[1])]
 df_pca = pd.DataFrame(data=X_pca, columns=column_names)
-#print(df_pca)
+print(df_pca)
 
 #splitting data into train, valid and test data
-train_data, test_data, train_label, test_label = train_test_split(  X, Y, test_size=0.10, random_state=1)
-#train_data, valid_data, train_label, valid_label = train_test_split(train_data, train_label, test_size=0.15, random_state=1)
+train_data, test_data, train_label, test_label = train_test_split(df_pca, Y, test_size=0.10, random_state=1)
+train_data, valid_data, train_label, valid_label = train_test_split(train_data, train_label, test_size=0.15, random_state=1)
 
 # define oversampling strategy
 #oversample = RandomOverSampler(sampling_strategy='minority')
@@ -143,25 +151,6 @@ train_data, train_label = undersample.fit_resample(train_data, train_label)
 # summarize class distribution
 #print(Counter(train_label))
 
-
-def best_param_lr():
-    error_rate = []
-    #randmoly start with default params, default value is 1
-    c_values=[0.01, 0.1, 1.0,10,100]
-    for i in c_values:
-     dt = LogisticRegression(C=i)
-     dt.fit(train_data,train_label)
-     pred_i = dt.predict(test_data)
-     error_rate.append(np.mean(pred_i != test_label))
-    #plt.figure(figsize=(10,6))
-    plt.plot(c_values,error_rate,color='blue', linestyle='dashed',marker='o',markerfacecolor='red', markersize=10)
-    plt.title('Error Rate vs. c_values Value')
-    plt.xlabel('c_values')
-    plt.ylabel('Error Rate')
-    plt.show()
-    print("Minimum error:",min(error_rate),"at c_values =",error_rate.index(min(error_rate)))
-    #0.21428571428571427 at c_values = 2
-
 def optimizing_LR():
     # define models and parameters
     model = LogisticRegression()
@@ -170,7 +159,8 @@ def optimizing_LR():
     c_values = [100, 10, 1.0, 0.1, 0.01]
     # define grid search
     grid = dict(solver=solvers,penalty=penalty,C=c_values)
-    grid_search = GridSearchCV(estimator=model, param_grid=grid, n_jobs=-1, cv=5, scoring='accuracy',error_score=0)
+    cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
+    grid_search = GridSearchCV(estimator=model, param_grid=grid, n_jobs=-1, cv=cv, scoring='accuracy',error_score=0)
     grid_result = grid_search.fit(train_data, train_label)
     # summarize results
     print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
@@ -194,133 +184,38 @@ def optimizing_SVM():
     #result obtained after optimizing parameters
     #'C': 1.0, 'gamma': 'scale', 'kernel': 'sigmoid'}
 
-def best_param_nb():
-    error_rate = []
-    nb_smoothing = np.logspace(0,-9, num=100)
-    accuracy_scores = np.zeros(nb_smoothing.shape[0])
-    for i in range(nb_smoothing.shape[0]):
-     nb = GaussianNB(var_smoothing=nb_smoothing[i])
-     nb.fit(train_data,train_label)
-     pred_i = nb.predict(test_data)
-     error_rate.append(np.mean(pred_i != test_label))
-     # Evaluate the accuracy of the model
-     accuracy = accuracy_score(test_label, pred_i)
-     accuracy_scores[i] = accuracy
-    best_index = np.argmax(accuracy_scores)
-
-    # Print the best value of the hyperparameter and its corresponding accuracy
-    print("Best variance smoothing value: ", nb_smoothing[best_index])
-    print("Accuracy: ", accuracy_scores[best_index])
-
-    #plt.figure()
-    plt.plot(nb_smoothing,error_rate,color='blue', linestyle='dashed',marker='o',markerfacecolor='red', markersize=10)
-    plt.title('Error Rate vs.  var_Smoothing')
-    plt.xlabel('Var_Smoothing')
-    plt.ylabel('Error Rate')
-    plt.show()
-    print("Minimum error:",min(error_rate),"at Var_Smoothing =",error_rate.index(min(error_rate)))
-    """ Best variance smoothing value:  0.43287612810830584
-    Accuracy:  0.75
-    Minimum error: 0.25 at K = 4"""
-
-    #Best variance smoothing value:  1.0
-
 def optimizing_gaussiannb():
     model=GaussianNB()
     params_NB = {'var_smoothing': np.logspace(0,-9, num=100)}
-    grid_search = GridSearchCV(estimator=model, param_grid=params_NB, cv=5,scoring='accuracy',error_score=0) 
+    grid_search = GridSearchCV(estimator=model, param_grid=params_NB, scoring='accuracy',error_score=0) 
     grid_result=grid_search.fit(train_data, train_label)
     # summarize results
     print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
     #Result obtained
     #'var_smoothing': 1.0
 
-def best_param_dt():
-    #trying error rate per param in decision tree
-    error_rate = []
-    #randmoly start with default params,default is none
-    #with default valu none error rate =0.5
-    max_depth=[1,2,3,4,5,6,7,8,9,10,20]
-    for i in max_depth:
-     dt = DecisionTreeClassifier(max_depth=i)
-     dt.fit(train_data,train_label)
-     pred_i = dt.predict(test_data)
-     error_rate.append(np.mean(pred_i != test_label))      
-    #plt.figure(figsize=(10,6))
-    plt.plot(max_depth,error_rate,color='blue', linestyle='dashed',marker='o',markerfacecolor='red', markersize=10)
-    plt.title('Error Rate vs. max_depth Value')
-    plt.xlabel('max_depth')
-    plt.ylabel('Error Rate')
-    plt.show()
-    print("Minimum error:",min(error_rate),"at max_depth =",error_rate.index(min(error_rate)))
-    #2 was Minimum error: 0.14285714285714285
-
-    
-    #default min_sample_leaf is 1, so trying leaf number around it 
-    """error_rate = []
-    #randmoly start with default params
-    min_samples_leaf=[1,2,3,4,5,6,7,8,9,10,20,25]
-    for i in min_samples_leaf:
-     dt = DecisionTreeClassifier(min_samples_leaf=i)
-     dt.fit(train_data,train_label)
-     pred_i = dt.predict(test_data)
-     error_rate.append(np.mean(pred_i != test_label))
-    #plt.figure(figsize=(10,6))
-    plt.plot(min_samples_leaf,error_rate,color='blue', linestyle='dashed',marker='o',markerfacecolor='red', markersize=10)
-    plt.title('Error Rate vs. min_samples_leaf Value')
-    plt.xlabel('min_samples_leaf')
-    plt.ylabel('Error Rate')
-    plt.show()
-    print("Minimum error:",min(error_rate),"at min_samples_leaf =",error_rate.index(min(error_rate)))
-    #Minimum error: 0.2857142857142857 at min_samples_leaf = 5"""
-
-    
 def optimizing_decisiontree():
     model =DecisionTreeClassifier()
     params = {'max_depth': [2, 3, 5, 10, 20],
               'min_samples_leaf': [5, 10, 20, 50, 100],
               'criterion': ["gini", "entropy"]}
-    grid_search = GridSearchCV(estimator=model, param_grid=params, cv=5, scoring='accuracy',error_score=0) 
+    grid_search = GridSearchCV(estimator=model, param_grid=params, scoring='accuracy',error_score=0) 
     grid_result=grid_search.fit(train_data, train_label)
     # summarize results
     print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
     #Result obtained
     #'criterion': 'gini', 'max_depth': 2, 'min_samples_leaf': 5
-
-def best_param_nvalue_knn():
-    error_rate = []
-    #defaut value5
-    for i in range(1,30):
-     knn = KNeighborsClassifier(n_neighbors=i)
-     knn.fit(train_data,train_label)
-     pred_i = knn.predict(test_data)
-     error_rate.append(np.mean(pred_i != test_label))
-    plt.figure(figsize=(10,6))
-    plt.plot(range(1,30),error_rate,color='blue', linestyle='dashed',marker='o',markerfacecolor='red', markersize=10)
-    plt.title('Error Rate vs. K Value')
-    plt.xlabel('K')
-    plt.ylabel('Error Rate')
-    plt.show()
-    print("Minimum error:",min(error_rate),"at K =",error_rate.index(min(error_rate)))
-    #2 was Minimum error: 0.14285714285714285
     
-def optimizing_knn():  
+def optimizing_knn():
     model =KNeighborsClassifier()
-    params = [{'n_neighbors': [1,2,3,4,5,6,7,8,9,10]}]
-    grid_search = GridSearchCV(estimator=model, param_grid=params,cv=5, scoring='accuracy',error_score=0) 
+    params = {'n_neighbors': [1,2,3,4,5,6,7,8,9,10]}
+    grid_search = GridSearchCV(estimator=model, param_grid=params, scoring='accuracy',error_score=0) 
     grid_result=grid_search.fit(train_data, train_label)
-   # summarize results
+    # summarize results
     print("Best: %f using %s" % (grid_result.best_score_, grid_result.best_params_))
     #Result obtained
     #n_neighbors:7
-
-    # Plot the accuracy
-    plt.plot(np.arange(1, 11), grid_result.cv_results_['mean_test_score'])
-    plt.xlabel('Number of Neighbors')
-    plt.ylabel('Accuracy')
-    plt.show()
-
-        
+    
 def logistic_regression():
     # Train the logistic regression model
     model = LogisticRegression(C=1.0,penalty='l2',solver='newton-cg')
@@ -352,9 +247,9 @@ def knn_model():
     neigh.fit(train_data, train_label)
     # Make predictions on new data
     y_pred = neigh.predict(test_data)
-    """
+
     # perform permutation importance
-    results = permutation_importance(neigh,train_data, train_label, scoring='accuracy')
+    results = permutation_importance(nb,train_data, train_label, scoring='accuracy')
     # get importance
     importance = results.importances_mean
     # summarize feature importance
@@ -365,7 +260,6 @@ def knn_model():
     plt.show()
 
     # Calculate the accuracy of the model
-    """
     accuracy = accuracy_score(test_label, y_pred)
     print("K-nn accuracy: %.2f" %(accuracy*100))    
     print(metrics.classification_report(test_label,y_pred))
@@ -426,16 +320,13 @@ def decision_tree():
 #optimizing_gaussiannb()
 #optimizing_decisiontree()
 #optimizing_knn()
-#best_param_nb()
-best_param_dt()
-#best_param_lr()
 
 #logistic_regression()
 
 #naive_bayes()
 #svm_model()
-#decision_tree()
-#knn_model()
+decision_tree()
+#knn_model()"""
 
     
 
